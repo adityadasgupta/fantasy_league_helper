@@ -25,6 +25,10 @@ class AppTests(unittest.TestCase):
         response = self.client.post('/api/plan', json={'players': [], 'mine': {'pts': -3}})
         self.assertEqual(response.status_code, 400)
 
+    def test_oversized_roster_rejected(self):
+        response = self.client.post('/api/plan', json={'players': [{}] * 19})
+        self.assertEqual(response.status_code, 400)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -24,8 +24,8 @@ def day_data():
     try:
         day = date.fromisoformat(payload["date"])
         ids = [int(value) for value in payload.get("player_ids", [])]
-        if not 0 < len(ids) <= 30:
-            raise ValueError("Select 1 to 30 players")
+        if not 0 < len(ids) <= 18:
+            raise ValueError("Select 1 to 18 players")
     except (ValueError, TypeError, KeyError):
         return jsonify(error="Enter a valid date and roster."), 400
     refresh = payload.get("refresh") is True
@@ -42,8 +42,8 @@ def day_data():
 def plan():
     payload = request.get_json(silent=True) or {}
     players = payload.get("players", [])
-    if not isinstance(players, list) or len(players) > 30:
-        return jsonify(error="A roster can have at most 30 players."), 400
+    if not isinstance(players, list) or len(players) > 18:
+        return jsonify(error="A roster can have at most 18 players."), 400
     try:
         for player in players:
             player["id"] = int(player["id"])

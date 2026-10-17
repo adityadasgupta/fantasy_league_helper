@@ -175,6 +175,7 @@ $('search-results').addEventListener('click', event => {
   if (!/^[A-Z]{3}$/.test(team) || !positions.length) { alert('Enter a three-letter NBA team code and at least one Yahoo position first.'); return; }
   const id = Number(button.dataset.id);
   if (roster.some(p => p.id === id)) { alert('That player is already on your roster.'); return; }
+  if (roster.length >= 18) { alert('The MVP supports up to 18 players. Remove one first.'); return; }
   roster.push({id, name:button.dataset.name, team, teamEdited:true, positions, available:true,
     stats:Object.fromEntries(statKeys.map(key => [key,0])), source:'NBA'});
   $('search').value = ''; $('search-results').innerHTML = '';
