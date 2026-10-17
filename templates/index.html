@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Five Cat — Daily Lineup Planner</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">5</span><span>FIVE CAT <small>daily lineup planner</small></span></div>
+      <span class="top-note">9-CAT · DAILY · YAHOO SLOTS</span>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">YOUR MATCHUP CONTROL CENTER</p>
+        <h1>Set your best lineup.<br><em>Chase five categories.</em></h1>
+        <p class="hero-copy">NBA game schedules and updated player averages power a position-valid recommendation. Add your matchup totals to aim at the categories you can win today.</p>
+      </div>
+      <div class="hero-controls">
+        <label for="day">GAME DATE</label>
+        <input id="day" type="date">
+        <button id="refresh" class="secondary">↻ &nbsp; Refresh NBA data</button>
+        <span id="data-status" class="status">Loading NBA data…</span>
+      </div>
+    </section>
+
+    <div id="warning" class="warning hidden" role="status"></div>
+
+    <section class="summary" aria-label="Daily summary">
+      <div class="metric"><span>PLAYING TODAY</span><strong id="playing-count">—</strong><small>available players</small></div>
+      <div class="metric"><span>ACTIVE LINEUP</span><strong id="active-count">—</strong><small>of 9 Yahoo slots</small></div>
+      <div class="metric accent"><span>PROJECTED CATS</span><strong id="win-count">—</strong><small id="win-caption">enter matchup totals</small></div>
+    </section>
+
+    <div class="layout">
+      <div class="main-column">
+        <section class="panel">
+          <div class="panel-heading">
+            <div><p class="eyebrow">THE RECOMMENDATION</p><h2>Today's lineup</h2></div>
+            <button id="optimize" class="primary">Optimize lineup →</button>
+          </div>
+          <div id="lineup" class="lineup empty-message">Loading your roster…</div>
+          <p class="footnote">A player must be marked available and playing today. The planner uses PG, SG, G, SF, PF, F, C, and two Util slots.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">NINE-CATEGORY VIEW</p><h2>Category outlook</h2></div></div>
+          <div id="category-outlook" class="category-grid empty-message">Enter matchup totals to see projected category wins after today's games.</div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><div><p class="eyebrow">YOUR TEAM</p><h2>Roster & game status</h2></div><button id="reset-roster" class="text-button">Reset screenshot roster</button></div>
+          <p class="help">Update team codes and Yahoo eligibility after trades or roster moves. Game boxes are editable, so you can correct schedule or injury news.</p>
+          <div id="roster" class="roster-list"></div>
+          <details class="add-player"><summary>+ Add a player</summary>
+            <div class="add-fields"><label>NBA player search <input id="search" type="search" placeholder="Type at least 3 letters" autocomplete="off"></label><div id="search-results" class="search-results"></div>
+              <label>Team code <input id="new-team" maxlength="3" placeholder="OKC"></label>
+              <label>Yahoo positions <input id="new-positions" placeholder="PG,SG"></label>
+            </div>
+            <p class="help">Select a search result, then enter the current NBA team and Yahoo position eligibility.</p>
+          </details>
+        </section>
+      </div>
+
+      <aside class="sidebar">
+        <section class="panel matchup-panel">
+          <p class="eyebrow">OPTIONAL MATCHUP INPUT</p><h2>Target the win</h2>
+          <p class="help">Enter your and your opponent's current weekly totals. The recommendation then maximizes categories projected <strong>after today</strong>. Update these daily from Yahoo. It cannot guarantee the week's result.</p>
+          <label class="switch-row"><input id="use-matchup" type="checkbox"><span>Use matchup totals</span></label>
+          <div class="totals-head"><span>CATEGORY</span><span>MY TEAM</span><span>OPPONENT</span></div>
+          <div id="matchup-inputs"></div>
+          <p class="help subtle">FG% and FT% use makes and attempts. Blank fields count as zero; TO is better when lower.</p>
+        </section>
+        <section class="note-panel"><span class="note-icon">i</span><div><strong>About the projections</strong><p>Per-game NBA averages are blended with the prior season early in a season. Availability and Yahoo eligibility are manual. The screenshot's averages are used only when live stats are unavailable.</p></div></section>
+      </aside>
+    </div>
+    <footer>Five Cat · Built with <a href="https://github.com/swar/nba_api" target="_blank" rel="noopener noreferrer">swar/nba_api</a> · Your roster and matchup entries stay in this browser.</footer>
+  </main>
+  <script id="initial-roster" type="application/json">{{ initial_roster|tojson }}</script>
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</body>
+</html>
