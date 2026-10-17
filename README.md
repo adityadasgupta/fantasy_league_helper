@@ -28,3 +28,11 @@ Without matchup totals, the app recommends a balanced lineup using all nine cate
 ```bash
 .venv/bin/python -m unittest discover -s tests -v
 ```
+
+## Free hosting option
+
+The repository includes a `render.yaml` Blueprint for a **Free** Render web service. Connect this GitHub repository to Render, choose **New > Blueprint**, and select `main`. Before approving deployment, confirm the service plan shown by Render is **Free / $0**; hosting plans can change. The Blueprint installs the Python requirements and runs Gunicorn on Render's assigned port. Do not add a paid database or disk: roster edits and matchup totals currently live in the browser, and the NBA cache can be rebuilt.
+
+After deployment, open the app and check that it reports **NBA averages loaded** and shows scheduled regular-season games on a game date. The host must be able to reach `stats.nba.com` and `cdn.nba.com`. If those NBA endpoints reject requests from the hosted service, the app will show a warning and fall back to screenshot averages and manually marked games; that live-host check cannot be completed before deployment.
+
+A free service may sleep when idle, making the first visit slow, and its filesystem may be temporary. Browser storage is tied to each browser and domain, so your entries will not automatically move from the cloud environment to the deployed URL or sync between devices. This Blueprint creates a public app with no login; add authentication before storing private league data on the server.
