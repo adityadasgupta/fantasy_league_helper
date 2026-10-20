@@ -98,7 +98,9 @@ async function loadDay(refresh = false) {
   try {
     const response = await fetch('/api/day', {method:'POST', headers:{'Content-Type':'application/json'},
       body:JSON.stringify({date:$('day').value, player_ids:roster.map(p => p.id), refresh:refresh === true})});
-    const data = await response.json();
+    let data;
+    try { data = await response.json(); }
+    catch (_) { throw new Error(`NBA service returned HTTP ${response.status}`); }
     if (!response.ok) throw new Error(data.error || 'NBA data request failed');
     scheduleAvailable = data.schedule_available;
     playingTeams = data.playing_teams;
@@ -111,7 +113,9 @@ async function loadDay(refresh = false) {
       }
     }
     save();
-    $('data-status').textContent = data.stats_available ? 'NBA averages loaded · updated daily' : 'Using screenshot averages';
+    $('data-status').textContent = data.stats_available
+      ? (data.warnings.some(w => w.includes('player stats unavailable')) ? 'Using historical NBA averages' : 'NBA averages loaded')
+      : 'Using screenshot averages';
     if (data.warnings.length) {
       $('warning').textContent = `${data.warnings.join(' ')} ${!scheduleAvailable ? 'Mark today’s games manually below.' : ''}`;
       $('warning').classList.remove('hidden');

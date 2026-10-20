@@ -1,5 +1,6 @@
 """Daily fantasy basketball planner web app."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 import math
 
@@ -29,12 +30,23 @@ def day_data():
     except (ValueError, TypeError, KeyError):
         return jsonify(error="Enter a valid date and roster."), 400
     refresh = payload.get("refresh") is True
-    projections, errors = project_players(ids, day, refresh)
-    teams, schedule_error = teams_playing(day, refresh)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        stats_future = executor.submit(project_players, ids, day, refresh)
+        schedule_future = executor.submit(teams_playing, day, refresh)
+        try:
+            projections, errors = stats_future.result()
+        except Exception:
+            app.logger.exception("NBA player projection failed")
+            projections, errors = {}, ["NBA player stats unavailable; using saved roster averages."]
+        try:
+            teams, schedule_error, schedule_available = schedule_future.result()
+        except Exception:
+            app.logger.exception("NBA schedule lookup failed")
+            teams, schedule_error, schedule_available = [], "NBA schedule unavailable; mark today's games manually.", False
     if schedule_error:
         errors.append(schedule_error)
     return jsonify(players=projections, playing_teams=teams,
-                   schedule_available=not schedule_error, warnings=errors,
+                   schedule_available=schedule_available, warnings=errors,
                    stats_available=bool(projections))
 
 

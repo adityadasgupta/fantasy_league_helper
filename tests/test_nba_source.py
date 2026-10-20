@@ -2,7 +2,7 @@ from datetime import date
 import unittest
 from unittest.mock import patch
 
-from nba_source import project_players, teams_playing
+from nba_source import league_stats, project_players, teams_playing
 
 
 class NbaSourceTests(unittest.TestCase):
@@ -14,8 +14,12 @@ class NbaSourceTests(unittest.TestCase):
             {'gameDate': '10/20/2026 00:00:00', 'gameId': '0022600001',
              'homeTeam_teamTricode': 'OKC', 'awayTeam_teamTricode': 'SAS'},
         ]
-        self.assertEqual(teams_playing(date(2026, 10, 16)), ([], None))
-        self.assertEqual(teams_playing(date(2026, 10, 20)), (['OKC', 'SAS'], None))
+        self.assertEqual(teams_playing(date(2026, 10, 16)), ([], None, True))
+        self.assertEqual(teams_playing(date(2026, 10, 20)), (['OKC', 'SAS'], None, True))
+
+    @patch('nba_source.leaguedashplayerstats.LeagueDashPlayerStats', side_effect=AssertionError('should use bundle'))
+    def test_completed_season_uses_bundled_stats(self, *_):
+        self.assertEqual(len(league_stats('2025-26', refresh=True)), 582)
 
     @patch('nba_source.league_stats')
     def test_current_stats_blend_with_prior_season(self, league_stats):
@@ -25,7 +29,7 @@ class NbaSourceTests(unittest.TestCase):
         current = {'PLAYER_ID': 1, 'TEAM_ABBREVIATION': 'NEW', 'GP': 2,
                    'FGM': 10, 'FGA': 20, 'FTM': 4, 'FTA': 5, 'FG3M': 4,
                    'PTS': 28, 'REB': 12, 'AST': 8, 'STL': 2, 'BLK': 1, 'TOV': 3}
-        league_stats.side_effect = [[previous], [current]]
+        league_stats.side_effect = lambda season, refresh=False: [previous] if season == '2025-26' else [current]
         projections, errors = project_players([1], date(2026, 11, 1))
         self.assertEqual(errors, [])
         self.assertEqual(projections[1]['team'], 'NEW')

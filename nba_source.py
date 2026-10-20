@@ -1,6 +1,7 @@
 """NBA schedule and per-game projections through swar/nba_api."""
 
-from datetime import date, datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+from datetime import date, datetime
 import json
 from pathlib import Path
 import time
@@ -11,6 +12,8 @@ from nba_api.stats.endpoints import leaguedashplayerstats, scheduleleaguev2
 from roster import STAT_KEYS
 
 CACHE_DIR = Path(__file__).parent / ".cache"
+DATA_DIR = Path(__file__).parent / "data"
+NBA_REQUEST_TIMEOUT = 8
 
 
 def season_for(day):
@@ -36,9 +39,14 @@ def cached(name, ttl_seconds, producer, force=False):
 
 
 def league_stats(season, refresh=False):
+    # Completed-season averages are immutable and travel with a fresh deployment.
+    bundled = DATA_DIR / f"stats_{season}.json"
+    if bundled.exists():
+        return json.loads(bundled.read_text())
+
     def download():
         frame = leaguedashplayerstats.LeagueDashPlayerStats(
-            season=season, season_type_all_star="Regular Season", timeout=15
+            season=season, season_type_all_star="Regular Season", timeout=NBA_REQUEST_TIMEOUT
         ).league_dash_player_stats.get_data_frame()
         columns = ("PLAYER_ID", "TEAM_ABBREVIATION", "GP", "FGM", "FGA", "FTM",
                    "FTA", "FG3M", "PTS", "REB", "AST", "STL", "BLK", "TOV")
@@ -51,11 +59,14 @@ def project_players(player_ids, day, refresh=False):
     season = season_for(day)
     errors = []
     seasons = {}
-    for which in (previous_season(season), season):
-        try:
-            seasons[which] = {int(row["PLAYER_ID"]): row for row in league_stats(which, refresh)}
-        except Exception as exc:
-            errors.append(f"{which} player stats unavailable: {type(exc).__name__}")
+    requested = (previous_season(season), season)
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = {which: executor.submit(league_stats, which, refresh) for which in requested}
+        for which, future in futures.items():
+            try:
+                seasons[which] = {int(row["PLAYER_ID"]): row for row in future.result()}
+            except Exception as exc:
+                errors.append(f"{which} player stats unavailable: {type(exc).__name__}")
     projected = {}
     columns = ("FGM", "FGA", "FTM", "FTA", "FG3M", "PTS", "REB", "AST", "STL", "BLK", "TOV")
     for player_id in player_ids:
@@ -92,21 +103,31 @@ def teams_playing(day, refresh=False):
     season = season_for(day)
 
     def download():
-        frame = scheduleleaguev2.ScheduleLeagueV2(season=season, timeout=15).season_games.get_data_frame()
+        frame = scheduleleaguev2.ScheduleLeagueV2(season=season, timeout=NBA_REQUEST_TIMEOUT).season_games.get_data_frame()
         return frame[["gameDate", "gameId", "homeTeam_teamTricode", "awayTeam_teamTricode"]].to_dict("records")
+
+    def regular_teams(games):
+        return sorted({team for game in games if str(game["gameId"]).startswith("002") and _parse_game_day(game["gameDate"]) == day
+                       for team in (game["homeTeam_teamTricode"], game["awayTeam_teamTricode"])})
 
     try:
         games = cached(f"schedule_regular_{season}", 12 * 3600, download, refresh)
         # 001 is preseason and 004 is playoffs; Yahoo weekly fantasy uses regular-season 002 games.
-        return sorted({team for game in games if str(game["gameId"]).startswith("002") and _parse_game_day(game["gameDate"]) == day
-                       for team in (game["homeTeam_teamTricode"], game["awayTeam_teamTricode"])}), None
+        return regular_teams(games), None, True
     except Exception as exc:
+        bundled = DATA_DIR / f"schedule_regular_{season}.json"
+        if bundled.exists():
+            try:
+                games = json.loads(bundled.read_text())
+                return regular_teams(games), f"Live NBA schedule unavailable: {type(exc).__name__}; using saved season schedule.", True
+            except (OSError, ValueError, KeyError):
+                pass
         # The live endpoint covers today when the season schedule endpoint is unavailable.
         if day == date.today():
             try:
-                games = scoreboard.ScoreBoard(timeout=10).get_dict()["scoreboard"]["games"]
+                games = scoreboard.ScoreBoard(timeout=6).get_dict()["scoreboard"]["games"]
                 return sorted({team for game in games if str(game.get("gameId", "")).startswith("002") for team in
-                               (game["homeTeam"]["teamTricode"], game["awayTeam"]["teamTricode"])}), None
+                               (game["homeTeam"]["teamTricode"], game["awayTeam"]["teamTricode"])}), None, True
             except Exception:
                 pass
-        return [], f"NBA schedule unavailable: {type(exc).__name__}"
+        return [], f"NBA schedule unavailable: {type(exc).__name__}", False
